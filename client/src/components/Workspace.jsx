@@ -249,7 +249,6 @@ export default function Workspace({ problem, layoutSignal }) {
             <ReactMarkdown className="prose prose-invert max-w-none">
               {problem.description}
             </ReactMarkdown>
-//change here
             {problem.examples && Array.isArray(problem.examples) && (
               <div className="mt-8 space-y-6">
                 <h3 className="text-white font-bold text-lg border-b border-gray-800 pb-2">Examples</h3>
