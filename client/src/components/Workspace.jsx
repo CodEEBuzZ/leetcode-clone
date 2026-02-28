@@ -5,7 +5,7 @@ import { API_BASE } from '../config/api';
 import AuthModal from './AuthModal';
 
 const DEFAULT_LANG = 'javascript';
-
+//add
 export default function Workspace({ problem, layoutSignal }) {
   const [language, setLanguage] = useState(DEFAULT_LANG);
   const [codeCache, setCodeCache] = useState({});
@@ -249,6 +249,7 @@ export default function Workspace({ problem, layoutSignal }) {
             <ReactMarkdown className="prose prose-invert max-w-none">
               {problem.description}
             </ReactMarkdown>
+            {/* {problem.examples && Array.isArray(problem.examples) && ( */}
             {problem.examples && Array.isArray(problem.examples) && (
               <div className="mt-8 space-y-6">
                 <h3 className="text-white font-bold text-lg border-b border-gray-800 pb-2">Examples</h3>
