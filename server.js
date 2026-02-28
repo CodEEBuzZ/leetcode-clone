@@ -4,11 +4,18 @@ const cors = require('cors');
 const axios = require('axios');
 const supabase = require('./supabaseClient');
 
+// ✨ YOUR CODE ADDED: Gemini Import
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(express.json());
+
+// ✨ YOUR CODE ADDED: Gemini Initialization
+const geminiApiKey = process.env.GEMINI_API_KEY || "PASTE_YOUR_GEMINI_KEY_HERE";
+const genAI = new GoogleGenerativeAI(geminiApiKey);
 
 // JDoodle Language Mapping
 const languageConfig = {
@@ -23,6 +30,37 @@ const languageConfig = {
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', database: 'supabase' });
 });
+
+// ==========================================
+// ✨ YOUR CODE ADDED: AI ASSISTANT ROUTE
+// ==========================================
+app.post('/api/ai-help', async (req, res) => {
+    try {
+        const { problemTitle, problemDescription, userCode, language } = req.body;
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+        You are a helpful coding mentor. 
+        Context: The user is solving a problem titled "${problemTitle}".
+        Problem Description: ${problemDescription}
+        User's Current ${language} Code:
+        \`\`\`${language}
+        ${userCode}
+        \`\`\`
+
+        Task: Provide a short, encouraging hint. Identify if there is a bug, but DO NOT provide the full corrected code. Help them think through the logic.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        res.json({ suggestion: response.text() });
+    } catch (error) {
+        console.error("AI Assistant Error:", error);
+        res.status(500).json({ error: "AI Assistant is currently offline." });
+    }
+});
+// ==========================================
+
 
 /**
  * GET ALL PROBLEMS
