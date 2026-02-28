@@ -5,7 +5,7 @@ import axios from 'axios';
 import { API_BASE } from './config/api';
 import ProblemDashboard from './components/ProblemDashboard';
 import Workspace from './components/Workspace';
-import Login from './components/login';
+import Login from './components/login.jsx';
 import Welcome from './components/Welcome';
 
 function ChevronRightIcon({ className = '' }) {
