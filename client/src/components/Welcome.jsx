@@ -5,7 +5,7 @@ const Welcome = () => {
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6 text-center">
             <h1 className="text-6xl font-extrabold text-blue-500 mb-4">CU LeetCode</h1>
             <p className="text-xl text-gray-400 mb-10 max-w-lg">
-                The platform for students to master coding, share knowledge, and level up their careers.
+                The platform for students to master coding, share knowledge, and level up their careers.Let's Code it...
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
