@@ -25,7 +25,8 @@ const Login = () => {
             const data = await response.json();
             if (data.success) {
                 localStorage.setItem('userId', data.userId);
-                window.location.href = '/dashboard';
+                // CHANGE: Redirect to '/' because that is where your ProblemDashboard lives in App.jsx
+                window.location.href = '/';
             } else {
                 setMessage(data.message || "Login failed");
             }
@@ -44,9 +45,8 @@ const Login = () => {
             return;
         }
 
-        setMessage('Sending verification email...');
+        setMessage('Creating account...');
         try {
-            // This hits the backend route we are about to build
             const response = await fetch(`${API_BASE}/api/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -54,7 +54,8 @@ const Login = () => {
             });
             const data = await response.json();
             if (data.success) {
-                setMessage("Registration started! Please check your email to verify your account.");
+                setMessage("Registration successful! You can now log in.");
+                setView('login'); // Switch to login view so they can sign in
             } else {
                 setMessage(data.message || "Registration failed");
             }
@@ -86,48 +87,55 @@ const Login = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
-            <h1 className="text-2xl font-bold mb-4">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
+            <h1 className="text-3xl font-extrabold mb-6 text-blue-500">
                 {view === 'login' && "Login to Code Assistant"}
                 {view === 'register' && "Create an Account"}
                 {view === 'forgot' && "Reset Your Password"}
             </h1>
 
-            {message && <p className="mb-4 text-yellow-400 text-center max-w-xs">{message}</p>}
+            {message && (
+                <div className="mb-4 p-3 bg-gray-800 border border-yellow-500/50 rounded-lg text-yellow-400 text-center max-w-xs animate-pulse">
+                    {message}
+                </div>
+            )}
 
             {/* LOGIN FORM */}
             {view === 'login' && (
-                <form onSubmit={handleLoginSubmit} className="flex flex-col bg-gray-800 p-8 rounded shadow-lg w-80">
+                <form onSubmit={handleLoginSubmit} className="flex flex-col bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
+                    <label className="text-xs font-semibold text-gray-400 uppercase ml-2 mb-1">Username</label>
                     <input
                         type="text"
-                        placeholder="Username"
-                        className="border border-gray-600 bg-gray-700 p-2 m-2 rounded focus:outline-none focus:border-blue-500"
+                        placeholder="Enter username"
+                        className="border border-gray-600 bg-gray-700 p-3 mb-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         required
                     />
+                    <label className="text-xs font-semibold text-gray-400 uppercase ml-2 mb-1">Password</label>
                     <input
                         type="password"
-                        placeholder="Password"
-                        className="border border-gray-600 bg-gray-700 p-2 m-2 rounded focus:outline-none focus:border-blue-500"
+                        placeholder="••••••••"
+                        className="border border-gray-600 bg-gray-700 p-3 mb-6 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
                     />
-                    <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white p-2 m-2 rounded font-bold transition">
+                    <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all">
                         Login
                     </button>
 
-                    <div className="flex flex-col items-center mt-4 space-y-2">
+                    <div className="flex flex-col items-center mt-6 space-y-3">
                         <button
                             type="button"
                             onClick={() => { setView('forgot'); setMessage(''); }}
-                            className="text-sm text-blue-400 hover:text-blue-300"
+                            className="text-sm text-blue-400 hover:text-blue-300 transition"
                         >
                             Forgot Password?
                         </button>
+                        <div className="h-px w-full bg-gray-700"></div>
                         <span className="text-sm text-gray-400">
-                            New? <button type="button" onClick={() => { setView('register'); setMessage(''); }} className="text-blue-400 hover:text-blue-300 font-semibold">Register here</button>
+                            New here? <button type="button" onClick={() => { setView('register'); setMessage(''); }} className="text-blue-400 hover:text-blue-300 font-bold ml-1">Register Account</button>
                         </span>
                     </div>
                 </form>
@@ -135,11 +143,11 @@ const Login = () => {
 
             {/* REGISTER FORM */}
             {view === 'register' && (
-                <form onSubmit={handleRegisterSubmit} className="flex flex-col bg-gray-800 p-8 rounded shadow-lg w-80">
+                <form onSubmit={handleRegisterSubmit} className="flex flex-col bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
                     <input
                         type="text"
                         placeholder="Username"
-                        className="border border-gray-600 bg-gray-700 p-2 m-2 rounded focus:outline-none focus:border-blue-500"
+                        className="border border-gray-600 bg-gray-700 p-3 mb-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         required
@@ -147,7 +155,7 @@ const Login = () => {
                     <input
                         type="email"
                         placeholder="Email Address"
-                        className="border border-gray-600 bg-gray-700 p-2 m-2 rounded focus:outline-none focus:border-blue-500"
+                        className="border border-gray-600 bg-gray-700 p-3 mb-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -155,7 +163,7 @@ const Login = () => {
                     <input
                         type="password"
                         placeholder="Password"
-                        className="border border-gray-600 bg-gray-700 p-2 m-2 rounded focus:outline-none focus:border-blue-500"
+                        className="border border-gray-600 bg-gray-700 p-3 mb-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
@@ -163,18 +171,18 @@ const Login = () => {
                     <input
                         type="password"
                         placeholder="Confirm Password"
-                        className="border border-gray-600 bg-gray-700 p-2 m-2 rounded focus:outline-none focus:border-blue-500"
+                        className="border border-gray-600 bg-gray-700 p-3 mb-6 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
                     />
-                    <button type="submit" className="bg-green-600 hover:bg-green-700 text-white p-2 m-2 rounded font-bold transition">
-                        Register
+                    <button type="submit" className="bg-green-600 hover:bg-green-500 text-white p-3 rounded-xl font-bold shadow-lg transition-all">
+                        Create Account
                     </button>
                     <button
                         type="button"
                         onClick={() => { setView('login'); setMessage(''); }}
-                        className="text-sm text-gray-400 hover:text-gray-300 mt-4"
+                        className="text-sm text-gray-400 hover:text-gray-300 mt-6"
                     >
                         &larr; Already have an account? Login
                     </button>
@@ -183,25 +191,25 @@ const Login = () => {
 
             {/* FORGOT PASSWORD FORM */}
             {view === 'forgot' && (
-                <form onSubmit={handleForgotSubmit} className="flex flex-col bg-gray-800 p-8 rounded shadow-lg w-80">
-                    <p className="text-sm text-gray-300 mb-4 px-2 text-center">
-                        Enter your registered email address and we'll send you a link to reset your password.
+                <form onSubmit={handleForgotSubmit} className="flex flex-col bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
+                    <p className="text-sm text-gray-300 mb-6 text-center">
+                        Enter your email and we'll send a reset link.
                     </p>
                     <input
                         type="email"
                         placeholder="Email Address"
-                        className="border border-gray-600 bg-gray-700 p-2 m-2 rounded focus:outline-none focus:border-blue-500"
+                        className="border border-gray-600 bg-gray-700 p-3 mb-6 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
                     />
-                    <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white p-2 m-2 rounded font-bold transition">
+                    <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all">
                         Send Reset Link
                     </button>
                     <button
                         type="button"
                         onClick={() => { setView('login'); setMessage(''); }}
-                        className="text-sm text-gray-400 hover:text-gray-300 mt-4"
+                        className="text-sm text-gray-400 hover:text-gray-300 mt-6"
                     >
                         &larr; Back to Login
                     </button>
