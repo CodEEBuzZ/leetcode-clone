@@ -37,7 +37,7 @@ app.get('/api/health', (req, res) => {
 app.post('/api/ai-help', async (req, res) => {
     try {
         const { problemTitle, problemDescription, userCode, language } = req.body;
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
         You are a helpful coding mentor. 
