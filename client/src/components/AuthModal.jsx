@@ -1,5 +1,4 @@
 import React from 'react';
-import hackerImage from '../assets/Hacker.jpg'; 
 
 const AuthModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
@@ -11,12 +10,11 @@ const AuthModal = ({ isOpen, onClose }) => {
                 
                 <div className="text-center flex flex-col items-center">
                     
-                    <div className="w-24 h-24 mb-4 rounded-full border-4 border-blue-500 shadow-xl flex items-center justify-center animate-bounce-short overflow-hidden bg-gray-900">
-                        <img 
-                            src={hackerImage}
-                            alt="Hacker Icon"
-                            className="w-full h-full object-cover"
-                        />
+                    {/* Replaced broken image with a clean SVG Icon */}
+                    <div className="w-24 h-24 mb-6 rounded-full border-4 border-blue-500 shadow-xl flex items-center justify-center bg-gray-900 text-blue-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+                        </svg>
                     </div>
                     
                     <h2 className="text-2xl font-extrabold text-white mb-3">
@@ -45,7 +43,7 @@ const AuthModal = ({ isOpen, onClose }) => {
                 </div>
             </div>
             
-            <style jsx="true">{`
+            <style>{`
                 @keyframes bounce-short {
                     0% { transform: scale(0.9); opacity: 0; }
                     50% { transform: scale(1.05); }
