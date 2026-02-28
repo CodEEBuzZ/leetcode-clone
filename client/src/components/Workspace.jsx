@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Editor } from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import { API_BASE } from '../config/api';
-import AuthModal from './AuthModal'; 
+import AuthModal from './AuthModal';
 
 const DEFAULT_LANG = 'javascript';
 
@@ -10,7 +10,7 @@ export default function Workspace({ problem, layoutSignal }) {
   const [language, setLanguage] = useState(DEFAULT_LANG);
   const [codeCache, setCodeCache] = useState({});
   const [descriptionWidth, setDescriptionWidth] = useState(50);
-  
+
   // --- AUTHENTICATION STATE ---
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -47,9 +47,9 @@ export default function Workspace({ problem, layoutSignal }) {
       newCache[lang] = problem.code_snippets[lang];
     });
     setCodeCache(newCache);
-    setAiHint(''); 
+    setAiHint('');
     setExecutionResult(null); // Clear terminal on problem change
-  }, [problem]); 
+  }, [problem]);
 
   const handleProtectedAction = (e) => {
     if (!isLoggedIn) {
@@ -69,7 +69,7 @@ export default function Workspace({ problem, layoutSignal }) {
     }
 
     setExecutionResult({ loading: true });
-    
+
     try {
       const currentCode = codeCache[language];
       const response = await fetch(`${API_BASE}/api/execute`, {
@@ -134,8 +134,8 @@ export default function Workspace({ problem, layoutSignal }) {
 
   const handleLanguageChange = (e) => {
     if (!isLoggedIn) {
-        setShowAuthModal(true);
-        return;
+      setShowAuthModal(true);
+      return;
     }
     setLanguage(e.target.value);
   };
@@ -193,15 +193,14 @@ export default function Workspace({ problem, layoutSignal }) {
         <div>
           <h2 className="text-lg font-semibold text-white">{problem.title}</h2>
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
-               problem.difficulty === 'Easy' ? 'bg-green-900/30 text-green-400' : 
-               problem.difficulty === 'Medium' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-red-900/30 text-red-400'
-            }`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${problem.difficulty === 'Easy' ? 'bg-green-900/30 text-green-400' :
+              problem.difficulty === 'Medium' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-red-900/30 text-red-400'
+              }`}>
               {problem.difficulty}
             </span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <label className="text-sm text-gray-300">
             Language:
@@ -216,7 +215,7 @@ export default function Workspace({ problem, layoutSignal }) {
             </select>
           </label>
 
-          <button 
+          <button
             onClick={handleAskAI}
             disabled={isAiLoading}
             className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white font-bold py-1.5 px-4 rounded-md text-sm"
@@ -224,7 +223,7 @@ export default function Workspace({ problem, layoutSignal }) {
             {isAiLoading ? "Thinking..." : "✨ Ask AI"}
           </button>
 
-          <button 
+          <button
             onClick={handleSubmit}
             className="bg-green-600 hover:bg-green-500 text-white font-bold py-1.5 px-6 rounded-md text-sm"
           >
@@ -250,6 +249,33 @@ export default function Workspace({ problem, layoutSignal }) {
             <ReactMarkdown className="prose prose-invert max-w-none">
               {problem.description}
             </ReactMarkdown>
+//change here
+            {problem.examples && Array.isArray(problem.examples) && (
+              <div className="mt-8 space-y-6">
+                <h3 className="text-white font-bold text-lg border-b border-gray-800 pb-2">Examples</h3>
+                {problem.examples.map((example, index) => (
+                  <div key={index} className="bg-gray-800/40 p-4 rounded-xl border border-gray-700 space-y-3">
+                    <h4 className="text-blue-400 font-bold text-sm">Example {index + 1}:</h4>
+                    <div className="font-mono text-sm space-y-2">
+                      <div className="flex flex-col sm:flex-row gap-1">
+                        <span className="text-gray-500 min-w-[60px]">Input:</span>
+                        <span className="text-gray-200 bg-black/30 px-2 py-0.5 rounded">{example.input}</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-1">
+                        <span className="text-gray-500 min-w-[60px]">Output:</span>
+                        <span className="text-gray-200 bg-black/30 px-2 py-0.5 rounded">{example.output}</span>
+                      </div>
+                      {example.explanation && (
+                        <div className="mt-2 text-gray-400">
+                          <span className="text-gray-500 font-semibold">Explanation: </span>
+                          <p className="inline italic">{example.explanation}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
