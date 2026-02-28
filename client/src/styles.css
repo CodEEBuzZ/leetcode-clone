@@ -24,3 +24,36 @@ body {
   @apply text-red-400;
 }
 
+/* --- ADD THIS AT THE BOTTOM --- */
+
+/* Professional Custom Scrollbar for Terminal & Sidebar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0d1117; /* Matches the Terminal background */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #30363d; /* Subtle gray thumb */
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #484f58; /* Brighter on hover */
+}
+
+/* Smooth transitions for the resizing panels */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Fix for Monaco Editor layout */
+.monaco-editor-container {
+  width: 100% !important;
+  height: 100% !important;
+}
