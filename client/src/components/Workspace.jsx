@@ -15,14 +15,16 @@ export default function Workspace({ problem, layoutSignal }) {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // ✨ YOUR CODE: AI MENTOR STATE
+  // ✨ AI MENTOR STATE
   const [aiHint, setAiHint] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // ✨ OUTPUT TERMINAL STATE (Moved inside the component)
+  const [executionResult, setExecutionResult] = useState(null);
 
   const containerRef = useRef(null);
   const editorRef = useRef(null);
 
-  // Determine which languages are available for the current problem
   const languages = useMemo(() => {
     if (!problem || !problem.code_snippets) return [];
     return Object.keys(problem.code_snippets);
@@ -35,21 +37,18 @@ export default function Workspace({ problem, layoutSignal }) {
     }
   }, []);
 
-  // Sync editor content and language whenever the problem changes
   useEffect(() => {
     if (!problem?.code_snippets) return;
-    
     const availableLangs = Object.keys(problem.code_snippets);
     const initialLang = availableLangs.includes(language) ? language : availableLangs[0];
     setLanguage(initialLang);
-    
     const newCache = {};
     availableLangs.forEach(lang => {
       newCache[lang] = problem.code_snippets[lang];
     });
-    
     setCodeCache(newCache);
-    setAiHint(''); // Clear previous AI hints when switching problems
+    setAiHint(''); 
+    setExecutionResult(null); // Clear terminal on problem change
   }, [problem]); 
 
   const handleProtectedAction = (e) => {
@@ -62,20 +61,20 @@ export default function Workspace({ problem, layoutSignal }) {
     }
   };
 
+  // ✨ UPDATED: Handles Beautiful Terminal Output instead of alerts
   const handleSubmit = async () => {
     if (!isLoggedIn) {
       setShowAuthModal(true);
       return;
     }
 
-    const currentCode = codeCache[language];
+    setExecutionResult({ loading: true });
     
     try {
+      const currentCode = codeCache[language];
       const response = await fetch(`${API_BASE}/api/execute`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: currentCode,
           language: language,
@@ -86,26 +85,28 @@ export default function Workspace({ problem, layoutSignal }) {
       const data = await response.json();
 
       if (response.ok) {
-        alert(`Execution Results:\n\nOutput: ${data.output}\nCPU Time: ${data.cpuTime}s\nMemory: ${data.memory}kb`);
+        setExecutionResult({
+          success: true,
+          output: data.output,
+          cpuTime: data.cpuTime,
+          memory: data.memory
+        });
       } else {
-        alert(`Error: ${data.error || 'Failed to execute code'}`);
+        setExecutionResult({ success: false, error: data.error || 'Execution failed' });
       }
     } catch (err) {
       console.error("Submission error:", err);
-      alert("Could not connect to the server. Make sure your backend is running.");
+      setExecutionResult({ success: false, error: "Could not connect to the server." });
     }
   };
 
-  // ✨ YOUR CODE: THE AI FETCH FUNCTION
   const handleAskAI = async () => {
     if (!isLoggedIn) {
       setShowAuthModal(true);
       return;
     }
-
     setIsAiLoading(true);
     setAiHint('');
-    
     try {
       const currentCode = codeCache[language] || '';
       const response = await fetch(`${API_BASE}/api/ai-help`, {
@@ -118,16 +119,13 @@ export default function Workspace({ problem, layoutSignal }) {
           language: language
         })
       });
-
       const data = await response.json();
-
       if (response.ok) {
         setAiHint(data.suggestion);
       } else {
-        setAiHint('Oops! The AI Mentor is currently offline. Try again later.');
+        setAiHint('Oops! The AI Mentor is currently offline.');
       }
     } catch (error) {
-      console.error("AI Error:", error);
       setAiHint('Failed to connect to the AI Mentor.');
     } finally {
       setIsAiLoading(false);
@@ -154,19 +152,16 @@ export default function Workspace({ problem, layoutSignal }) {
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-
     const onMouseMove = (moveEvent) => {
       const offsetX = moveEvent.clientX - rect.left;
       let next = (offsetX / rect.width) * 100;
       next = Math.min(75, Math.max(25, next));
       setDescriptionWidth(next);
     };
-
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
   };
@@ -187,7 +182,6 @@ export default function Workspace({ problem, layoutSignal }) {
       <div className="flex-1 flex items-center justify-center text-gray-500 bg-background">
         <div className="text-center">
           <p className="text-lg font-medium">Loading problem details...</p>
-          <p className="text-sm">Fetching from Supabase</p>
         </div>
       </div>
     );
@@ -205,7 +199,6 @@ export default function Workspace({ problem, layoutSignal }) {
             }`}>
               {problem.difficulty}
             </span>
-            <p className="text-xs text-gray-400">{problem.slug}</p>
           </div>
         </div>
         
@@ -215,28 +208,25 @@ export default function Workspace({ problem, layoutSignal }) {
             <select
               value={language}
               onChange={handleLanguageChange}
-              className="ml-2 bg-background border border-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-accent"
+              className="ml-2 bg-background border border-gray-700 rounded px-2 py-1 text-xs focus:outline-none"
             >
               {languages.map((lang) => (
-                <option key={lang} value={lang}>
-                  {lang}
-                </option>
+                <option key={lang} value={lang}>{lang}</option>
               ))}
             </select>
           </label>
 
-          {/* ✨ YOUR CODE: AI BUTTON */}
           <button 
             onClick={handleAskAI}
             disabled={isAiLoading}
-            className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white font-bold py-1.5 px-4 rounded-md shadow-lg transition-colors text-sm flex items-center gap-2"
+            className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white font-bold py-1.5 px-4 rounded-md text-sm"
           >
             {isAiLoading ? "Thinking..." : "✨ Ask AI"}
           </button>
 
           <button 
             onClick={handleSubmit}
-            className="bg-green-600 hover:bg-green-500 text-white font-bold py-1.5 px-6 rounded-md shadow-lg transition-colors text-sm"
+            className="bg-green-600 hover:bg-green-500 text-white font-bold py-1.5 px-6 rounded-md text-sm"
           >
             Submit
           </button>
@@ -249,82 +239,26 @@ export default function Workspace({ problem, layoutSignal }) {
           style={{ width: `${descriptionWidth}%` }}
         >
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            
-            {/* ✨ YOUR CODE: AI HINT DISPLAY BOX */}
             {aiHint && (
-              <div className="mb-4 p-4 bg-purple-900/40 border border-purple-500/50 rounded-xl relative shadow-lg">
-                <button
-                  onClick={() => setAiHint('')}
-                  className="absolute top-2 right-2 text-purple-300 hover:text-white"
-                >
-                  ✕
-                </button>
-                <h3 className="text-purple-300 font-bold mb-2 text-sm flex items-center gap-2">
-                  ✨ AI Mentor Hint
-                </h3>
-                <div className="text-sm text-gray-200 whitespace-pre-wrap">
-                  {aiHint}
-                </div>
+              <div className="mb-4 p-4 bg-purple-900/40 border border-purple-500/50 rounded-xl relative">
+                <button onClick={() => setAiHint('')} className="absolute top-2 right-2 text-purple-300">✕</button>
+                <h3 className="text-purple-300 font-bold mb-2 text-sm">✨ AI Mentor Hint</h3>
+                <div className="text-sm text-gray-200 whitespace-pre-wrap">{aiHint}</div>
               </div>
             )}
 
-            <ReactMarkdown
-              className="prose prose-invert max-w-none"
-              components={{
-                code({ node, inline, className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className || '');
-                  return !inline ? (
-                    <pre className="bg-panel rounded p-3 overflow-auto text-xs font-mono">
-                      <code {...props}>{String(children).replace(/\n$/, '')}</code>
-                    </pre>
-                  ) : (
-                    <code className="bg-panel rounded px-1 py-0.5 text-xs font-mono" {...props}>
-                      {children}
-                    </code>
-                  );
-                }
-              }}
-            >
+            <ReactMarkdown className="prose prose-invert max-w-none">
               {problem.description}
             </ReactMarkdown>
-
-            {Array.isArray(problem.examples) && problem.examples.length > 0 && (
-              <div className="pb-10">
-                <h3 className="text-sm font-semibold mb-3">Examples</h3>
-                <div className="space-y-4">
-                  {problem.examples.map((ex, idx) => (
-                    <div key={idx} className="bg-panel rounded border border-gray-700 p-3 text-xs">
-                      <div className="font-semibold text-gray-300 mb-2">
-                        Example {ex.example_num || idx + 1}
-                      </div>
-                      <pre className="bg-background rounded p-2 overflow-auto font-mono whitespace-pre-wrap text-gray-200">
-                        {ex.example_text}
-                      </pre>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </section>
 
-        <div
-          className="w-1 bg-gray-800 hover:bg-accent cursor-col-resize transition-colors"
-          onMouseDown={handleInnerDividerMouseDown}
-        />
+        <div className="w-1 bg-gray-800 hover:bg-accent cursor-col-resize" onMouseDown={handleInnerDividerMouseDown} />
 
-        <section
-          className="flex flex-col bg-background relative"
-          style={{ width: `${100 - descriptionWidth}%` }}
-        >
-          <div className="flex-1 overflow-hidden relative">
-            {!isLoggedIn && (
-                <div 
-                    className="absolute inset-0 z-20 cursor-pointer bg-black/10"
-                    onClick={handleProtectedAction}
-                />
-            )}
-
+        <section className="flex flex-col bg-background relative" style={{ width: `${100 - descriptionWidth}%` }}>
+          {/* EDITOR AREA */}
+          <div className="flex-1 overflow-hidden relative border-b border-gray-800">
+            {!isLoggedIn && <div className="absolute inset-0 z-20 bg-black/10" onClick={handleProtectedAction} />}
             <Editor
               height="100%"
               language={language === 'python3' ? 'python' : language === 'cpp' ? 'cpp' : language}
@@ -332,22 +266,35 @@ export default function Workspace({ problem, layoutSignal }) {
               value={codeCache[language] || ''}
               onChange={handleCodeChange}
               onMount={handleEditorMount}
-              options={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                fontSize: 13,
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                automaticLayout: true 
-              }}
+              options={{ minimap: { enabled: false }, automaticLayout: true }}
             />
+          </div>
+
+          {/* ✨ BEAUTIFUL OUTPUT TERMINAL */}
+          <div className="h-48 bg-[#0d1117] flex flex-col font-mono text-sm border-t border-gray-800">
+            <div className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-800">
+              <span className="text-gray-400 font-bold text-xs uppercase">Output</span>
+              {executionResult && <button onClick={() => setExecutionResult(null)} className="text-gray-500 hover:text-white text-xs">Clear</button>}
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {!executionResult ? (
+                <p className="text-gray-600">Run code to see output...</p>
+              ) : executionResult.loading ? (
+                <p className="text-blue-400 animate-pulse">Running code...</p>
+              ) : executionResult.success ? (
+                <div className="space-y-2">
+                  <p className="text-green-400 font-bold">✓ Success!</p>
+                  <pre className="text-gray-200 bg-black/30 p-2 rounded border border-gray-800">{executionResult.output}</pre>
+                </div>
+              ) : (
+                <p className="text-red-400">Error: {executionResult.error}</p>
+              )}
+            </div>
           </div>
         </section>
       </div>
 
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 }

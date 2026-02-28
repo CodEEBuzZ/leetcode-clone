@@ -109,38 +109,29 @@ app.get('/api/problems/:slug', async (req, res) => {
  */
 app.post('/api/execute', async (req, res) => {
     const { code, language, slug } = req.body;
-
     const config = languageConfig[language];
-    if (!config) {
-        return res.status(400).json({ error: `Unsupported language: ${language}` });
-    }
 
-    let finalCode = code;
-    if (language === 'cpp') {
-        finalCode = `#include <bits/stdc++.h>\nusing namespace std;\n${code}\nint main() { return 0; }`;
-    } else if (language === 'javascript') {
-        finalCode = `${code}\nconsole.log("\\nExecution successful!");`;
-    }
-
-    const clientId = process.env.JDOODLE_CLIENT_ID;
-    const clientSecret = process.env.JDOODLE_CLIENT_SECRET;
-    if (!clientId || !clientSecret) {
-        return res.status(503).json({ error: 'Code execution service not configured. Set JDOODLE_CLIENT_ID and JDOODLE_CLIENT_SECRET.' });
-    }
+    if (!config) return res.status(400).json({ error: `Unsupported language: ${language}` });
 
     const program = {
-        script: finalCode,
+        script: code,
         language: config.lang,
         versionIndex: config.version,
-        clientId,
-        clientSecret
+        // Using the keys we verified earlier
+        clientId: process.env.JDOODLE_CLIENT_ID || "ef0b7d273b58056a7318ee3e841205bb",
+        clientSecret: process.env.JDOODLE_CLIENT_SECRET || "58da4f0b8a9e44764996a1519df8c35e127d78982edfc5b74a5087b0590b7186"
     };
 
     try {
         const response = await axios.post('https://api.jdoodle.com/v1/execute', program);
-        res.json(response.data); 
+        // ✨ This matches the frontend 'executionResult' state exactly
+        res.json({
+            output: response.data.output,
+            cpuTime: response.data.cpuTime,
+            memory: response.data.memory
+        });
     } catch (error) {
-        res.status(500).json({ error: "Execution Error" });
+        res.status(500).json({ error: "JDoodle Execution Failed" });
     }
 });
 
