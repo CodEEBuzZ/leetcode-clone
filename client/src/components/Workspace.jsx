@@ -1,4 +1,3 @@
-// Workspace.jsx
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Editor } from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
@@ -15,6 +14,10 @@ export default function Workspace({ problem, layoutSignal }) {
   // --- AUTHENTICATION STATE ---
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // ✨ YOUR CODE: AI MENTOR STATE
+  const [aiHint, setAiHint] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const containerRef = useRef(null);
   const editorRef = useRef(null);
@@ -37,19 +40,17 @@ export default function Workspace({ problem, layoutSignal }) {
     if (!problem?.code_snippets) return;
     
     const availableLangs = Object.keys(problem.code_snippets);
-    
-    // Default to the first available language if the current selection isn't supported by this problem
     const initialLang = availableLangs.includes(language) ? language : availableLangs[0];
     setLanguage(initialLang);
     
-    // Initialize the cache with the starter code snippets from Supabase
     const newCache = {};
     availableLangs.forEach(lang => {
       newCache[lang] = problem.code_snippets[lang];
     });
     
     setCodeCache(newCache);
-  }, [problem]); // Trigger refresh when the whole problem object updates
+    setAiHint(''); // Clear previous AI hints when switching problems
+  }, [problem]); 
 
   const handleProtectedAction = (e) => {
     if (!isLoggedIn) {
@@ -92,6 +93,44 @@ export default function Workspace({ problem, layoutSignal }) {
     } catch (err) {
       console.error("Submission error:", err);
       alert("Could not connect to the server. Make sure your backend is running.");
+    }
+  };
+
+  // ✨ YOUR CODE: THE AI FETCH FUNCTION
+  const handleAskAI = async () => {
+    if (!isLoggedIn) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    setIsAiLoading(true);
+    setAiHint('');
+    
+    try {
+      const currentCode = codeCache[language] || '';
+      const response = await fetch(`${API_BASE}/api/ai-help`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          problemTitle: problem.title,
+          problemDescription: problem.description,
+          userCode: currentCode,
+          language: language
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAiHint(data.suggestion);
+      } else {
+        setAiHint('Oops! The AI Mentor is currently offline. Try again later.');
+      }
+    } catch (error) {
+      console.error("AI Error:", error);
+      setAiHint('Failed to connect to the AI Mentor.');
+    } finally {
+      setIsAiLoading(false);
     }
   };
 
@@ -186,6 +225,15 @@ export default function Workspace({ problem, layoutSignal }) {
             </select>
           </label>
 
+          {/* ✨ YOUR CODE: AI BUTTON */}
+          <button 
+            onClick={handleAskAI}
+            disabled={isAiLoading}
+            className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white font-bold py-1.5 px-4 rounded-md shadow-lg transition-colors text-sm flex items-center gap-2"
+          >
+            {isAiLoading ? "Thinking..." : "✨ Ask AI"}
+          </button>
+
           <button 
             onClick={handleSubmit}
             className="bg-green-600 hover:bg-green-500 text-white font-bold py-1.5 px-6 rounded-md shadow-lg transition-colors text-sm"
@@ -201,6 +249,25 @@ export default function Workspace({ problem, layoutSignal }) {
           style={{ width: `${descriptionWidth}%` }}
         >
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            
+            {/* ✨ YOUR CODE: AI HINT DISPLAY BOX */}
+            {aiHint && (
+              <div className="mb-4 p-4 bg-purple-900/40 border border-purple-500/50 rounded-xl relative shadow-lg">
+                <button
+                  onClick={() => setAiHint('')}
+                  className="absolute top-2 right-2 text-purple-300 hover:text-white"
+                >
+                  ✕
+                </button>
+                <h3 className="text-purple-300 font-bold mb-2 text-sm flex items-center gap-2">
+                  ✨ AI Mentor Hint
+                </h3>
+                <div className="text-sm text-gray-200 whitespace-pre-wrap">
+                  {aiHint}
+                </div>
+              </div>
+            )}
+
             <ReactMarkdown
               className="prose prose-invert max-w-none"
               components={{
