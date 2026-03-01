@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { API_BASE } from '../config/api';
+import { supabase } from '../supabaseClient'; // Ensure this path is correct
 
 const Login = () => {
   const [view, setView] = useState('login');
@@ -12,33 +12,32 @@ const Login = () => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // --- LOGIN LOGIC ---
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email, // Supabase uses email to identify users
+        password,
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        localStorage.setItem('userId', data.userId);
+      if (error) {
+        setMessage(error.message);
+      } else if (data.user) {
+        localStorage.setItem('userId', data.user.id);
         window.location.href = '/';
-      } else {
-        setMessage(data.message || "Login failed");
       }
-    } catch {
+    } catch (err) {
       setMessage("An error occurred during login.");
     } finally {
       setLoading(false);
     }
   };
 
+  // --- REGISTER LOGIC ---
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -51,42 +50,46 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password })
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username, // This triggers your public.profiles SQL function
+          }
+        }
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        setMessage("Account created successfully! Please login.");
-        setView('login');
+      if (error) {
+        setMessage(error.message);
       } else {
-        setMessage(data.message || "Registration failed");
+        setMessage("Account created! Check your email for a verification link.");
+        // If email confirmation is off in Supabase, you can setView('login') here
       }
-    } catch {
+    } catch (err) {
       setMessage("An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // --- FORGOT PASSWORD LOGIC ---
   const handleForgotSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('Sending password reset link...');
+    setMessage('');
 
     try {
-      const response = await fetch(`${API_BASE}/api/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
-
-      const data = await response.json();
-      setMessage(data.success ? "Check your email for reset link!" : "Failed to send reset link.");
-    } catch {
+      
+      if (error) {
+        setMessage(error.message);
+      } else {
+        setMessage("Check your email for the reset link!");
+      }
+    } catch (err) {
       setMessage("An error occurred.");
     } finally {
       setLoading(false);
@@ -95,9 +98,8 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white p-4">
-
       <div className="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-8 transition-all">
-
+        
         <h1 className="text-2xl font-bold text-center text-blue-400 mb-6">
           {view === 'login' && "Welcome Back"}
           {view === 'register' && "Create Account"}
@@ -110,19 +112,17 @@ const Login = () => {
           </div>
         )}
 
-        {/* LOGIN */}
+        {/* LOGIN FORM */}
         {view === 'login' && (
           <form onSubmit={handleLoginSubmit} className="space-y-4 animate-fadeIn">
-
             <input
-              type="text"
-              placeholder="Username"
+              type="email"
+              placeholder="Email"
               className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
-
             <input
               type="password"
               placeholder="Password"
@@ -131,11 +131,10 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-500 p-3 rounded-xl font-bold transition-all"
+              className="w-full bg-blue-600 hover:bg-blue-500 p-3 rounded-xl font-bold transition-all disabled:opacity-50"
             >
               {loading ? "Logging in..." : "Login"}
             </button>
@@ -145,7 +144,6 @@ const Login = () => {
                 className="text-blue-400 hover:text-blue-300">
                 Forgot password?
               </button>
-
               <p>
                 New user?
                 <button type="button"
@@ -158,33 +156,27 @@ const Login = () => {
           </form>
         )}
 
-        {/* REGISTER */}
+        {/* REGISTER FORM */}
         {view === 'register' && (
           <form onSubmit={handleRegisterSubmit} className="space-y-3">
-
             <input type="text" placeholder="Username"
-              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl"
+              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
               value={username} onChange={(e) => setUsername(e.target.value)} required />
-
             <input type="email" placeholder="Email"
-              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl"
+              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
               value={email} onChange={(e) => setEmail(e.target.value)} required />
-
             <input type="password" placeholder="Password"
-              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl"
+              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
               value={password} onChange={(e) => setPassword(e.target.value)} required />
-
             <input type="password" placeholder="Confirm Password"
-              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl"
+              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required />
-
-            <button type="submit"
-              className="w-full bg-green-600 hover:bg-green-500 p-3 rounded-xl font-bold">
+            <button type="submit" disabled={loading}
+              className="w-full bg-green-600 hover:bg-green-500 p-3 rounded-xl font-bold disabled:opacity-50">
               {loading ? "Creating..." : "Create Account"}
             </button>
-
             <button type="button"
               onClick={() => { setView('login'); setMessage(''); }}
               className="text-sm text-gray-400 w-full mt-2">
@@ -193,28 +185,24 @@ const Login = () => {
           </form>
         )}
 
-        {/* FORGOT */}
+        {/* FORGOT PASSWORD FORM */}
         {view === 'forgot' && (
           <form onSubmit={handleForgotSubmit} className="space-y-4">
-
             <p className="text-sm text-gray-400 text-center">
               Enter email to receive reset link
             </p>
-
             <input
               type="email"
               placeholder="Email address"
-              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl"
+              className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-
-            <button type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-500 p-3 rounded-xl font-bold">
+            <button type="submit" disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-500 p-3 rounded-xl font-bold disabled:opacity-50">
               {loading ? "Sending..." : "Send Reset Link"}
             </button>
-
             <button type="button"
               onClick={() => { setView('login'); setMessage(''); }}
               className="text-sm text-gray-400 w-full">
