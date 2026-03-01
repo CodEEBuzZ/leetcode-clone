@@ -7,8 +7,8 @@ import ProblemDashboard from './components/ProblemDashboard';
 import Workspace from './components/Workspace';
 import Login from './components/login.jsx';
 import Welcome from './components/Welcome';
-import Topbar from './components/Topbar';
 import Profile from './components/Profile';
+import Navbar from './components/Navbar';
 
 function ChevronRightIcon({ className = '' }) {
   return (
@@ -88,7 +88,6 @@ export default function App() {
 
   return (
     <Router>
-      <Topbar />
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
@@ -96,7 +95,8 @@ export default function App() {
         <Route path="/dashboard" element={
           isAuthenticated ? (
             <div className="h-screen flex flex-col bg-background text-gray-100">
-              <header className="h-14 flex items-center justify-between px-4 border-b border-gray-800 bg-panel sticky top-0 z-20">
+              <Navbar />
+              {/* <header className="h-14 flex items-center justify-between px-4 border-b border-gray-800 bg-panel sticky top-0 z-20">
                 <span className="text-lg font-semibold">CU LeetCode Clone</span>
                 <button
                   onClick={() => {
@@ -107,7 +107,7 @@ export default function App() {
                 >
                   Logout
                 </button>
-              </header>
+              </header> */}
 
               {loading && <div className="flex-1 flex items-center justify-center">Loading data from Supabase...</div>}
               {error && <div className="flex-1 flex items-center justify-center text-red-500">{error}</div>}
