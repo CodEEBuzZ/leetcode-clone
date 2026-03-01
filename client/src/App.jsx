@@ -88,6 +88,7 @@ export default function App() {
 
   return (
     <Router>
+      {isAuthenticated && <Navbar />}
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
@@ -95,20 +96,6 @@ export default function App() {
         <Route path="/dashboard" element={
           isAuthenticated ? (
             <div className="h-screen flex flex-col bg-background text-gray-100">
-              <Navbar />
-              {/* <header className="h-14 flex items-center justify-between px-4 border-b border-gray-800 bg-panel sticky top-0 z-20">
-                <span className="text-lg font-semibold">CU LeetCode Clone</span>
-                <button
-                  onClick={() => {
-                    localStorage.removeItem('userId');
-                    window.location.href = '/';
-                  }}
-                  className="px-3 py-1 bg-red-600 rounded text-xs hover:bg-red-500 font-bold text-white"
-                >
-                  Logout
-                </button>
-              </header> */}
-
               {loading && <div className="flex-1 flex items-center justify-center">Loading data from Supabase...</div>}
               {error && <div className="flex-1 flex items-center justify-center text-red-500">{error}</div>}
 
