@@ -4,7 +4,7 @@ const cors = require('cors');
 const axios = require('axios');
 const supabase = require('./supabaseClient');
 
-// ✨ YOUR CODE ADDED: Gemini Import
+// ✨ Gemini Import
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
@@ -13,8 +13,9 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
-// ✨ YOUR CODE ADDED: Gemini Initialization
-const geminiApiKey = process.env.GEMINI_API_KEY || "PASTE_YOUR_GEMINI_KEY_HERE";
+// ✨ Gemini Initialization
+// Ensure GEMINI_API_KEY is set in your .env file
+const geminiApiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(geminiApiKey);
 
 // JDoodle Language Mapping
@@ -31,13 +32,16 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', database: 'supabase' });
 });
 
-// ==========================================
-// ✨ YOUR CODE ADDED: AI ASSISTANT ROUTE
-// ==========================================
+/**
+ * AI ASSISTANT ROUTE
+ * Provides hints without giving away the full answer
+ */
 app.post('/api/ai-help', async (req, res) => {
     try {
         const { problemTitle, problemDescription, userCode, language } = req.body;
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        // Updated to a current stable model name
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `
         You are a helpful coding mentor. 
@@ -59,12 +63,9 @@ app.post('/api/ai-help', async (req, res) => {
         res.status(500).json({ error: "AI Assistant is currently offline." });
     }
 });
-// ==========================================
-
 
 /**
  * GET ALL PROBLEMS
- * Fetches the list for the dashboard
  */
 app.get('/api/problems', async (req, res) => {
     try {
@@ -82,7 +83,6 @@ app.get('/api/problems', async (req, res) => {
 
 /**
  * GET SINGLE PROBLEM
- * Fetches full details + test cases using the slug
  */
 app.get('/api/problems/:slug', async (req, res) => {
     try {
@@ -108,53 +108,50 @@ app.get('/api/problems/:slug', async (req, res) => {
  * JDoodle Execution Route
  */
 app.post('/api/execute', async (req, res) => {
-    const { code, language, slug } = req.body;
+    const { code, language } = req.body;
     const config = languageConfig[language];
 
     if (!config) return res.status(400).json({ error: `Unsupported language: ${language}` });
+
+    // Ensure credentials exist in environment variables
+    if (!process.env.JDOODLE_CLIENT_ID || !process.env.JDOODLE_CLIENT_SECRET) {
+        return res.status(500).json({ error: "Execution service credentials missing." });
+    }
 
     const program = {
         script: code,
         language: config.lang,
         versionIndex: config.version,
-        // Using the keys we verified earlier
-        clientId: process.env.JDOODLE_CLIENT_ID || "ef0b7d273b58056a7318ee3e841205bb",
-        clientSecret: process.env.JDOODLE_CLIENT_SECRET || "58da4f0b8a9e44764996a1519df8c35e127d78982edfc5b74a5087b0590b7186"
+        clientId: process.env.JDOODLE_CLIENT_ID,
+        clientSecret: process.env.JDOODLE_CLIENT_SECRET
     };
 
     try {
         const response = await axios.post('https://api.jdoodle.com/v1/execute', program);
-        // ✨ This matches the frontend 'executionResult' state exactly
         res.json({
             output: response.data.output,
             cpuTime: response.data.cpuTime,
             memory: response.data.memory
         });
     } catch (error) {
+        console.error("JDoodle Error:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "JDoodle Execution Failed" });
     }
 });
 
-app.post('/api/login', async (req, res) => {
-    const { username, password } = req.body;
-    // TODO: Replace with Supabase Auth
-    res.status(200).json({ success: true, userId: 'user_supabase_placeholder' });
+// --- AUTH PLACEHOLDERS ---
+// Logic should be handled via Supabase Auth on the client side or via a dedicated auth middleware
+
+app.post('/api/login', (req, res) => {
+    res.status(200).json({ success: true, message: "Use Supabase Auth on the frontend." });
 });
 
-app.post('/api/register', async (req, res) => {
-    const { username, email, password } = req.body;
-    // TODO: Replace with Supabase Auth signUp
-    res.status(501).json({ success: false, message: 'Registration not yet implemented. Use Supabase Auth.' });
-});
-
-app.post('/api/forgot-password', async (req, res) => {
-    const { email } = req.body;
-    // TODO: Replace with Supabase Auth resetPasswordForEmail
-    res.status(501).json({ success: false, message: 'Password reset not yet implemented. Use Supabase Auth.' });
+app.post('/api/register', (req, res) => {
+    res.status(501).json({ success: false, message: 'Registration not yet implemented.' });
 });
 
 app.get('/', (req, res) => {
-    res.send('Server is running with Supabase Connection!');
+    res.send('Server is running and connected to Supabase!');
 });
 
 app.listen(PORT, () => {
