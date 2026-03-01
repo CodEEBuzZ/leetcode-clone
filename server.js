@@ -34,25 +34,39 @@ app.get('/api/health', (req, res) => {
 
 /**
  * AI ASSISTANT ROUTE
- * Provides hints without giving away the full answer
+ * Provides hints, approaches, and answers custom questions without giving full code
  */
 app.post('/api/ai-help', async (req, res) => {
     try {
-        const { problemTitle, problemDescription, userCode, language } = req.body;
+        // ✨ ADDED: userPrompt and examples from the frontend
+        const { problemTitle, problemDescription, examples, userCode, language, userPrompt } = req.body;
         
         // Updated to a current stable model name
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
-        You are a helpful coding mentor. 
+        You are an expert coding mentor helping a student. 
+        
         Context: The user is solving a problem titled "${problemTitle}".
-        Problem Description: ${problemDescription}
+        
+        Problem Description: 
+        ${problemDescription}
+        
+        ${examples ? `Examples:\n${JSON.stringify(examples)}\n` : ''}
+        
         User's Current ${language} Code:
         \`\`\`${language}
         ${userCode}
         \`\`\`
+        
+        ${userPrompt ? `User's Custom Question/Prompt: "${userPrompt}"\n` : ''}
 
-        Task: Provide a short, encouraging hint. Identify if there is a bug, but DO NOT provide the full corrected code. Help them think through the logic.
+        Task Instructions:
+        1. Help the user understand the problem statement and how to approach the logic.
+        2. If they provided code, guide them on their logic or identify where their bug is.
+        3. If the user asked a specific question (User's Custom Question/Prompt), address it directly.
+        4. You may provide VERY SMALL code snippets to illustrate a concept, syntax, or correct a single line.
+        5. STRICT RULE: NEVER provide the fully solved code. Even if the user explicitly asks for the full code, politely decline, explain that you are here to guide them, and offer a hint instead.
         `;
 
         const result = await model.generateContent(prompt);
