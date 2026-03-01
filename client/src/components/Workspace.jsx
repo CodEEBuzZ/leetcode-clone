@@ -2,374 +2,209 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Editor } from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import { API_BASE } from '../config/api';
-import AuthModal from './AuthModal';
 
 const DEFAULT_LANG = 'javascript';
 
-export default function Workspace({ problem, layoutSignal }) {
+export default function Workspace({ problem }) {
   const [language, setLanguage] = useState(DEFAULT_LANG);
   const [codeCache, setCodeCache] = useState({});
   const [descriptionWidth, setDescriptionWidth] = useState(50);
 
-  // --- AUTHENTICATION STATE ---
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  // AI
-  const [aiHint, setAiHint] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
-
-  // OUTPUT
-  const [executionResult, setExecutionResult] = useState(null);
-  const [outputHeight, setOutputHeight] = useState(190);
+  // Terminal State
+  const [outputHeight, setOutputHeight] = useState(200);
   const [isOutputCollapsed, setIsOutputCollapsed] = useState(false);
   const [activeTerminalTab, setActiveTerminalTab] = useState("output");
+
+  // Execution & AI State
+  const [aiHint, setAiHint] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [executionResult, setExecutionResult] = useState(null);
   const [runStatus, setRunStatus] = useState(null);
 
   const containerRef = useRef(null);
   const editorRef = useRef(null);
 
-  const languages = useMemo(() => {
-    if (!problem || !problem.code_snippets) return [];
-    return Object.keys(problem.code_snippets);
+  // --- DATA PARSING ---
+  const formattedDescription = useMemo(() => {
+    if (!problem?.description) return "";
+    return problem.description.replace(/\\n/g, '\n');
   }, [problem]);
 
-  useEffect(() => {
-    const userId = localStorage.getItem('userId');
-    if (userId) setIsLoggedIn(true);
-  }, []);
+  const parsedExamples = useMemo(() => {
+    if (!problem?.examples) return [];
+    try {
+      return Array.isArray(problem.examples) ? problem.examples : JSON.parse(problem.examples);
+    } catch (e) { return []; }
+  }, [problem]);
+
+  const languages = useMemo(() => problem?.code_snippets ? Object.keys(problem.code_snippets) : [], [problem]);
 
   useEffect(() => {
     if (!problem?.code_snippets) return;
-
-    const availableLangs = Object.keys(problem.code_snippets);
-    const initialLang = availableLangs.includes(language)
-      ? language
-      : availableLangs[0];
-
+    const initialLang = languages.includes(language) ? language : languages[0];
     setLanguage(initialLang);
-
     const newCache = {};
-    availableLangs.forEach(lang => {
-      newCache[lang] = problem.code_snippets[lang];
-    });
-
+    languages.forEach(lang => { newCache[lang] = problem.code_snippets[lang]; });
     setCodeCache(newCache);
-    setAiHint('');
     setExecutionResult(null);
-    setRunStatus(null);
   }, [problem]);
 
-  const handleProtectedAction = (e) => {
-    if (!isLoggedIn) {
-      e?.preventDefault();
-      e?.stopPropagation();
-      setShowAuthModal(true);
-    }
-  };
-
-  // SUBMIT
-  const handleSubmit = async () => {
-    if (!isLoggedIn) {
-      setShowAuthModal(true);
-      return;
-    }
-
-    setRunStatus("running");
-    setExecutionResult({ loading: true });
-
-    try {
-      const response = await fetch(`${API_BASE}/api/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: codeCache[language],
-          language,
-          slug: problem.slug
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setRunStatus("success");
-        setExecutionResult({
-          success: true,
-          output: data.output,
-          cpuTime: data.cpuTime,
-          memory: data.memory
-        });
-      } else {
-        setRunStatus("error");
-        setExecutionResult({ success: false, error: data.error });
-      }
-    } catch (err) {
-      setRunStatus("error");
-      setExecutionResult({
-        success: false,
-        error: "Could not connect to server."
-      });
-    }
-  };
-
-  const handleAskAI = async () => {
-    if (!isLoggedIn) {
-      setShowAuthModal(true);
-      return;
-    }
-
-    setIsAiLoading(true);
-    setAiHint('');
-
-    try {
-      const response = await fetch(`${API_BASE}/api/ai-help`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          problemTitle: problem.title,
-          problemDescription: problem.description,
-          userCode: codeCache[language] || '',
-          language
-        })
-      });
-
-      const data = await response.json();
-      setAiHint(response.ok ? data.suggestion : "AI Mentor offline.");
-    } catch {
-      setAiHint("Failed to connect AI Mentor.");
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
-  const handleLanguageChange = (e) => {
-    if (!isLoggedIn) {
-      setShowAuthModal(true);
-      return;
-    }
-    setLanguage(e.target.value);
-  };
-
-  const handleCodeChange = (newCode) => {
-    setCodeCache(prev => ({ ...prev, [language]: newCode ?? '' }));
-  };
-
-  // SIDE DIVIDER
+  // --- RESIZE HANDLERS ---
   const handleInnerDividerMouseDown = (e) => {
     e.preventDefault();
-    const rect = containerRef.current.getBoundingClientRect();
-
     const onMove = (ev) => {
+      const rect = containerRef.current.getBoundingClientRect();
       let next = ((ev.clientX - rect.left) / rect.width) * 100;
-      next = Math.min(75, Math.max(25, next));
-      setDescriptionWidth(next);
+      setDescriptionWidth(Math.min(75, Math.max(20, next)));
     };
-
     const stop = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', stop);
     };
-
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', stop);
   };
 
-  // OUTPUT RESIZE
   const handleOutputResizeMouseDown = (e) => {
     e.preventDefault();
     const startY = e.clientY;
     const startHeight = outputHeight;
-
     const onMove = (ev) => {
-      let h = startHeight + (startY - ev.clientY);
-      h = Math.max(120, Math.min(450, h));
-      setOutputHeight(h);
+      const delta = startY - ev.clientY; // Dragging up increases height
+      const newHeight = Math.max(42, Math.min(600, startHeight + delta));
+      setOutputHeight(newHeight);
+      if (newHeight > 50) setIsOutputCollapsed(false);
     };
-
     const stop = () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", stop);
     };
-
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", stop);
   };
 
-  const handleEditorMount = (editor) => {
-    editorRef.current = editor;
-    setTimeout(() => editor.layout(), 0);
+  // --- ACTIONS ---
+  const handleSubmit = async () => {
+    setRunStatus("running");
+    setExecutionResult({ loading: true });
+    setIsOutputCollapsed(false);
+    try {
+      const response = await fetch(`${API_BASE}/api/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codeCache[language], language, slug: problem.slug }),
+      });
+      const data = await response.json();
+      setRunStatus(response.ok ? "success" : "error");
+      setExecutionResult(response.ok ? { success: true, ...data } : { success: false, error: data.error });
+    } catch {
+      setRunStatus("error");
+      setExecutionResult({ success: false, error: "Connection failed." });
+    }
   };
 
-  useEffect(() => {
-    editorRef.current?.layout();
-  }, [descriptionWidth, layoutSignal]);
+  const handleAskAI = async () => {
+    setIsAiLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/ai-help`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problemTitle: problem.title, userCode: codeCache[language], language })
+      });
+      const data = await response.json();
+      setAiHint(data.suggestion);
+    } catch { setAiHint("AI offline."); }
+    finally { setIsAiLoading(false); }
+  };
 
-  if (!problem?.description) {
-    return <div className="flex-1 flex items-center justify-center text-gray-500">Loading...</div>;
-  }
+  if (!problem) return <div className="flex-1 flex items-center justify-center text-gray-500 bg-[#1a1a1a]">Select a problem...</div>;
 
   return (
-    <div className="flex flex-col h-full relative">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-panel sticky top-0 z-10">
+    <div className="flex flex-col h-full bg-[#1a1a1a] text-white overflow-hidden">
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-[#1e1e1e]">
         <div>
-          <h2 className="text-lg font-semibold text-white">{problem.title}</h2>
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${problem.difficulty === 'Easy' ? 'bg-green-900/30 text-green-400' :
-              problem.difficulty === 'Medium' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-red-900/30 text-red-400'
-              }`}>
-              {problem.difficulty}
-            </span>
-          </div>
+          <h2 className="text-lg font-bold">{problem.title}</h2>
+          <span className="text-[10px] text-green-400 uppercase">{problem.difficulty}</span>
         </div>
-
         <div className="flex items-center gap-4">
-          <label className="text-sm text-gray-300">
-            Language:
-            <select
-              value={language}
-              onChange={handleLanguageChange}
-              className="ml-2 bg-background border border-gray-700 rounded px-2 py-1 text-xs focus:outline-none"
-            >
-              {languages.map((lang) => (
-                <option key={lang} value={lang}>{lang}</option>
-              ))}
-            </select>
-          </label>
-
-          <button
-            onClick={handleAskAI}
-            disabled={isAiLoading}
-            className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white font-bold py-1.5 px-4 rounded-md text-sm"
-          >
-            {isAiLoading ? "Thinking..." : "✨ Ask AI"}
-          </button>
-
-          <button
-            onClick={handleSubmit}
-            className="bg-green-600 hover:bg-green-500 text-white font-bold py-1.5 px-6 rounded-md text-sm"
-          >
-            Submit
-          </button>
+          <select value={language} onChange={(e) => setLanguage(e.target.value)} className="bg-[#0d1117] border border-gray-700 rounded px-2 py-1 text-xs">
+            {languages.map(lang => <option key={lang} value={lang}>{lang}</option>)}
+          </select>
+          <button onClick={handleAskAI} className="bg-indigo-600 px-4 py-1.5 rounded-md text-sm font-bold">✨ Ask AI</button>
+          <button onClick={handleSubmit} className="bg-blue-600 px-6 py-1.5 rounded-md text-sm font-bold">Run</button>
         </div>
       </header>
 
       <div ref={containerRef} className="flex flex-1 overflow-hidden">
-        {/* DESCRIPTION SIDE */}
-        <section style={{ width: `${descriptionWidth}%` }} className="border-r border-gray-800 overflow-y-auto p-6 bg-[#1a1a1a]">
-          {aiHint && (
-            <div className="p-4 bg-purple-900/20 border border-purple-500/30 rounded-xl mb-6 text-purple-200 text-sm animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center gap-2 mb-2 font-bold">
-                <span>✨ AI Suggestion</span>
-              </div>
-              <ReactMarkdown className="prose prose-invert prose-sm">{aiHint}</ReactMarkdown>
+        {/* Description */}
+        <section style={{ width: `${descriptionWidth}%` }} className="border-r border-gray-800 overflow-y-auto p-8 custom-scrollbar">
+          {aiHint && <div className="p-4 bg-indigo-900/20 border border-indigo-500/30 rounded-xl mb-6 text-sm whitespace-pre-wrap">{aiHint}</div>}
+          <ReactMarkdown className="prose prose-invert whitespace-pre-wrap">{formattedDescription}</ReactMarkdown>
+          {parsedExamples.map((ex, i) => (
+            <div key={i} className="mt-6 bg-[#262626] p-4 rounded-xl border border-gray-800 font-mono text-sm">
+              <div className="text-blue-400 text-xs mb-2 uppercase">Example {ex.example_num || i+1}</div>
+              <div className="whitespace-pre-wrap">{ex.example_text}</div>
             </div>
-          )}
-
-          <ReactMarkdown className="prose prose-invert max-w-none">
-            {problem.description}
-          </ReactMarkdown>
-
-          {problem.examples && Array.isArray(problem.examples) && (
-            <div className="mt-8 space-y-6">
-              <h3 className="text-white font-bold text-lg border-b border-gray-800 pb-2">Examples</h3>
-              {problem.examples.map((example, index) => (
-                <div key={index} className="bg-gray-800/40 p-4 rounded-xl border border-gray-700 space-y-3">
-                  <h4 className="text-blue-400 font-bold text-sm">Example {index + 1}:</h4>
-                  <div className="font-mono text-sm space-y-2">
-                    <div className="flex flex-col sm:flex-row gap-1">
-                      <span className="text-gray-500 min-w-[60px]">Input:</span>
-                      <span className="text-gray-200 bg-black/30 px-2 py-0.5 rounded">{example.input}</span>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-1">
-                      <span className="text-gray-500 min-w-[60px]">Output:</span>
-                      <span className="text-gray-200 bg-black/30 px-2 py-0.5 rounded">{example.output}</span>
-                    </div>
-                    {example.explanation && (
-                      <div className="mt-2 text-gray-400">
-                        <span className="text-gray-500 font-semibold">Explanation: </span>
-                        <p className="inline italic">{example.explanation}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </section>
 
-        <div className="w-1 bg-gray-800 cursor-col-resize"
-          onMouseDown={handleInnerDividerMouseDown} />
+        {/* Vertical Divider */}
+        <div className="w-1 bg-gray-800 cursor-col-resize hover:bg-blue-500 transition-colors" onMouseDown={handleInnerDividerMouseDown} />
 
-        {/* EDITOR SIDE */}
-        <section style={{ width: `${100 - descriptionWidth}%` }} className="flex flex-col">
-          <div className="flex-1 border-b border-gray-800 relative">
-            {!isLoggedIn && <div onClick={handleProtectedAction} className="absolute inset-0 z-20 cursor-pointer" />}
+        {/* Editor & Terminal */}
+        <section style={{ width: `${100 - descriptionWidth}%` }} className="flex flex-col bg-[#0d1117]">
+          <div className="flex-1 relative overflow-hidden">
             <Editor
               height="100%"
               language={language}
               theme="vs-dark"
               value={codeCache[language] || ""}
-              onChange={handleCodeChange}
-              onMount={handleEditorMount}
-              options={{ minimap: { enabled: false } }}
+              onChange={(val) => setCodeCache(prev => ({ ...prev, [language]: val }))}
+              options={{ minimap: { enabled: false }, fontSize: 14, padding: { top: 20 } }}
             />
           </div>
 
-          {/* TERMINAL */}
-          <div
-            className="bg-[#0d1117] flex flex-col"
-            style={{ height: isOutputCollapsed ? "42px" : `${outputHeight}px` }}
+          {/* Terminal */}
+          <div 
+            className="flex flex-col bg-[#090c10] border-t border-gray-800 relative" 
+            style={{ height: isOutputCollapsed ? '42px' : `${outputHeight}px` }}
           >
-            <div onMouseDown={handleOutputResizeMouseDown}
-              className="h-1 cursor-ns-resize bg-gray-800 hover:bg-blue-500" />
+            {/* Horizontal Resize Handle */}
+            <div 
+              className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-blue-500 z-10" 
+              onMouseDown={handleOutputResizeMouseDown} 
+            />
 
-            <div className="flex justify-between px-4 py-2 bg-gray-900 text-xs">
+            {/* Terminal Header */}
+            <div className="flex justify-between items-center px-6 h-[41px] bg-[#161b22] shrink-0">
               <div className="flex gap-4">
-                {["output","testcase","console"].map(tab => (
-                  <button key={tab}
-                    onClick={() => setActiveTerminalTab(tab)}
-                    className={activeTerminalTab===tab ? "text-blue-400 font-bold" : "text-gray-500"}>
-                    {tab.toUpperCase()}
+                {["output", "testcase"].map(tab => (
+                  <button key={tab} onClick={() => {setActiveTerminalTab(tab); setIsOutputCollapsed(false);}} 
+                    className={`text-[10px] font-bold uppercase ${activeTerminalTab === tab ? "text-blue-500" : "text-gray-500"}`}>
+                    {tab}
                   </button>
                 ))}
               </div>
-
-              <div className="flex items-center gap-3">
-                {runStatus==="running" && <span className="text-yellow-400 animate-pulse text-[10px]">● RUNNING</span>}
-                {runStatus==="success" && <span className="text-green-400 text-[10px]">● ACCEPTED</span>}
-                {runStatus==="error" && <span className="text-red-400 text-[10px]">● ERROR</span>}
-
-                <button 
-                  onClick={()=>setIsOutputCollapsed(!isOutputCollapsed)}
-                  className="text-gray-400 hover:text-white transition"
-                >
-                  {isOutputCollapsed ? "Expand" : "Collapse"}
-                </button>
-              </div>
+              <button onClick={() => setIsOutputCollapsed(!isOutputCollapsed)} className="text-gray-500 hover:text-white text-[10px] font-bold">
+                {isOutputCollapsed ? "EXPAND" : "COLLAPSE"}
+              </button>
             </div>
 
-            {!isOutputCollapsed && (
-              <div className="flex-1 overflow-auto p-4 font-mono text-sm text-gray-200">
-                {activeTerminalTab==="output" && (
-                  !executionResult ? <p className="text-gray-500">Run code to see output...</p> :
-                  executionResult.loading ? <p className="text-yellow-400">Running execution tests...</p> :
-                  executionResult.success ? (
-                    <div className="space-y-2">
-                      <pre className="text-green-400">{executionResult.output}</pre>
-                      <div className="text-[10px] text-gray-500">
-                        CPU: {executionResult.cpuTime}ms | Memory: {executionResult.memory}KB
-                      </div>
-                    </div>
-                  ) : <pre className="text-red-400">{executionResult.error}</pre>
-                )}
-                {activeTerminalTab==="testcase" && <p className="text-gray-500 italic">Testcases feature coming soon...</p>}
-              </div>
-            )}
+            {/* Terminal Content */}
+            <div className="flex-1 overflow-auto p-6 font-mono text-sm">
+              {activeTerminalTab === "output" ? (
+                executionResult?.loading ? <div className="text-yellow-500 animate-pulse">Running...</div> :
+                executionResult?.success ? <pre className="text-green-400">{executionResult.output}</pre> :
+                executionResult?.error ? <pre className="text-red-400">{executionResult.error}</pre> :
+                <span className="text-gray-600 italic">No output yet.</span>
+              ) : (
+                <span className="text-gray-600">Testcase configuration coming soon.</span>
+              )}
+            </div>
           </div>
         </section>
       </div>
-
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 }
