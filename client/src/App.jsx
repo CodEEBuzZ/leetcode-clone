@@ -7,6 +7,8 @@ import ProblemDashboard from './components/ProblemDashboard';
 import Workspace from './components/Workspace';
 import Login from './components/login.jsx';
 import Welcome from './components/Welcome';
+import Topbar from './components/Topbar';
+import Profile from './components/Profile';
 
 function ChevronRightIcon({ className = '' }) {
   return (
@@ -25,7 +27,7 @@ export default function App() {
   const [selectedProblem, setSelectedProblem] = useState(null);
   const [dashboardWidth, setDashboardWidth] = useState(40);
   const [showProblemList, setShowProblemList] = useState(true);
-  
+
   const mainRef = useRef(null);
   const isAuthenticated = !!localStorage.getItem('userId');
 
@@ -86,6 +88,7 @@ export default function App() {
 
   return (
     <Router>
+      <Topbar />
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
@@ -122,15 +125,15 @@ export default function App() {
                           onSearchQueryChange={setSearchQuery}
                           onSelectProblem={handleSelectProblem} // Changed to use our fetcher
                           selectedSlug={selectedProblem?.slug}
-                          onToggleSidebar={() => setShowProblemList(false)} 
+                          onToggleSidebar={() => setShowProblemList(false)}
                         />
                       </div>
                       <div className="w-1 bg-gray-800 hover:bg-accent cursor-col-resize" onMouseDown={handleOuterDividerMouseDown} />
                     </>
                   ) : (
                     <div className="w-10 border-r border-gray-900 flex justify-center items-start pt-3 bg-background">
-                      <button 
-                        onClick={() => setShowProblemList(true)} 
+                      <button
+                        onClick={() => setShowProblemList(true)}
                         className="p-1.5 hover:bg-gray-700 rounded text-gray-400 transition-colors"
                         title="Show Problems"
                       >
@@ -140,9 +143,9 @@ export default function App() {
                   )}
 
                   <div className="flex-1 flex flex-col bg-background">
-                    <Workspace 
-                      problem={selectedProblem} 
-                      layoutSignal={showProblemList ? 'expanded' : 'full'} 
+                    <Workspace
+                      problem={selectedProblem}
+                      layoutSignal={showProblemList ? 'expanded' : 'full'}
                     />
                   </div>
                 </main>
@@ -150,6 +153,7 @@ export default function App() {
             </div>
           ) : <Navigate to="/login" />
         } />
+        <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
       </Routes>
     </Router>
   );
