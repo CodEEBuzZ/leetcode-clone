@@ -1,4 +1,4 @@
-// App.jsx
+//App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
@@ -88,7 +88,7 @@ export default function App() {
 
   return (
     <Router>
-      {isAuthenticated && <Navbar />}
+      <Navbar />
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
