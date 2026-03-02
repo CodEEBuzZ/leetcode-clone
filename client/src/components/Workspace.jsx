@@ -90,22 +90,64 @@ export default function Workspace({ problem }) {
   };
 
   // --- ACTIONS ---
+  // const handleSubmit = async () => {
+  //   setRunStatus("running");
+  //   setExecutionResult({ loading: true });
+  //   setIsOutputCollapsed(false);
+  //   try {
+  //     const response = await fetch(`${API_BASE}/api/execute`, {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ code: codeCache[language], language, slug: problem.slug }),
+  //     });
+  //     const data = await response.json();
+  //     setRunStatus(response.ok ? "success" : "error");
+  //     setExecutionResult(response.ok ? { success: true, ...data } : { success: false, error: data.error });
+  //   } catch {
+  //     setRunStatus("error");
+  //     setExecutionResult({ success: false, error: "Connection failed." });
+  //   }
+  // };
   const handleSubmit = async () => {
     setRunStatus("running");
     setExecutionResult({ loading: true });
     setIsOutputCollapsed(false);
+
     try {
-      const response = await fetch(`${API_BASE}/api/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: codeCache[language], language, slug: problem.slug }),
+      // 1. Fetch all test cases for this problem from Supabase
+      // This costs 0 credits.
+      const { data: testCases, error: fetchError } = await supabase
+        .from('test_cases')
+        .select('*')
+        .eq('problem_id', problem.id);
+
+      if (fetchError) throw new Error(fetchError.message);
+
+      // 2. Call your NEW Edge Function (The one you just deployed)
+      // This costs only 1 credit for ALL test cases.
+      const { data, error: invokeError } = await supabase.functions.invoke('run-tests', {
+        body: {
+          userCode: codeCache[language],
+          testCases: testCases,
+          language: language
+        }
       });
-      const data = await response.json();
-      setRunStatus(response.ok ? "success" : "error");
-      setExecutionResult(response.ok ? { success: true, ...data } : { success: false, error: data.error });
-    } catch {
+
+      if (invokeError) throw new Error(invokeError.message);
+
+      // 3. Update the UI with the batch results
+      setRunStatus("success");
+      setExecutionResult({
+        success: true,
+        results: data.results // This is the array from your index.ts loop
+      });
+
+    } catch (err) {
       setRunStatus("error");
-      setExecutionResult({ success: false, error: "Connection failed." });
+      setExecutionResult({
+        success: false,
+        error: err.message || "Connection failed."
+      });
     }
   };
 
