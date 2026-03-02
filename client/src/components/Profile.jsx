@@ -25,7 +25,7 @@ const Profile = () => {
                                 problems ( title, difficulty, slug )
                             `)
                             .eq('user_id', user.id)
-                            .eq('status', 'accepted')
+                            .eq('status', 'Accepted')
                     ]);
 
                     if (profileRes.data) setUserProfile(profileRes.data);
