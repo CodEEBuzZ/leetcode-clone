@@ -44,21 +44,31 @@ export default function Workspace({ problem }) {
 
   const languages = useMemo(() => problem?.code_snippets ? Object.keys(problem.code_snippets) : [], [problem]);
 
-  // ✨ NEW: Fetch Test Cases when problem loads
+  // ✨ DEBUG VERSION: Fetch Test Cases when problem loads
   useEffect(() => {
     const fetchTestCases = async () => {
-      if (!problem?.id) return;
+      console.log("🔍 1. Current Problem Data:", problem);
+      
+      if (!problem?.id) {
+        console.error("❌ 2. ERROR: `problem.id` is missing!");
+        return;
+      }
+
       try {
+        console.log("🔄 3. Fetching test cases for problem_id:", problem.id);
         const { data, error } = await supabase
           .from('test_cases')
           .select('*')
           .eq('problem_id', problem.id);
         
-        if (!error && data) {
+        if (error) {
+          console.error("❌ 4. Supabase DB Error:", error.message);
+        } else {
+          console.log("✅ 5. Success! Fetched test cases:", data);
           setDbTestCases(data);
         }
       } catch (err) {
-        console.error("Failed to fetch test cases", err);
+        console.error("❌ 6. Network Error:", err);
       }
     };
 
@@ -116,13 +126,49 @@ export default function Workspace({ problem }) {
     window.addEventListener("mouseup", stop);
   };
 
+  // --- ✨ SCORE UPDATING LOGIC ---
+  const incrementUserScore = async () => {
+    try {
+      // 1. Get the current logged-in user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 2. Fetch their current score first
+      const { data: profileData, error: fetchError } = await supabase
+        .from('profiles')
+        .select('rank_score')
+        .eq('id', user.id)
+        .single();
+
+      if (fetchError) {
+        console.error("Failed to fetch current score:", fetchError);
+        return;
+      }
+
+      // 3. Add 1 to their current score
+      const newScore = (profileData.rank_score || 0) + 1;
+
+      // 4. Save the new score to the database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ rank_score: newScore }) 
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error("Score update failed:", updateError);
+      } else {
+        console.log("🏆 Score successfully updated to:", newScore);
+      }
+    } catch (err) {
+      console.error("Auth error:", err);
+    }
+  };
+
   // --- ACTIONS ---
   const handleSubmit = async () => {
     setRunStatus("running");
     setExecutionResult({ loading: true });
     setIsOutputCollapsed(false);
-    
-    // Auto-switch to testcase tab to show the evaluation happening!
     setActiveTerminalTab("testcase"); 
 
     try {
@@ -132,8 +178,34 @@ export default function Workspace({ problem }) {
         body: JSON.stringify({ code: codeCache[language], language, slug: problem.slug }),
       });
       const data = await response.json();
-      setRunStatus(response.ok ? "success" : "error");
-      setExecutionResult(response.ok ? { success: true, ...data } : { success: false, error: data.error });
+      
+      if (response.ok) {
+        setRunStatus("success");
+        setExecutionResult({ success: true, ...data });
+
+        // --- ✨ NEW: EVALUATE TEST CASES AND UPDATE SCORE ---
+        const cleanOut = (data.output || "").replace(/\s/g, '');
+        
+        // Check if EVERY test case in the DB is found in the terminal output
+        if (dbTestCases.length > 0) {
+          const allPassed = dbTestCases.every(tc => {
+            const expectedStr = typeof tc.expected_output === 'object' 
+              ? JSON.stringify(tc.expected_output) 
+              : String(tc.expected_output);
+            return cleanOut.includes(expectedStr.replace(/\s/g, ''));
+          });
+
+          // If they passed all test cases, give them a point!
+          if (allPassed) {
+            await incrementUserScore();
+          }
+        }
+        // ------------------------------------
+
+      } else {
+        setRunStatus("error");
+        setExecutionResult({ success: false, error: data.error });
+      }
     } catch {
       setRunStatus("error");
       setExecutionResult({ success: false, error: "Connection failed." });
@@ -362,7 +434,6 @@ export default function Workspace({ problem }) {
 
                   {dbTestCases.length > 0 ? (
                     dbTestCases.map((tc, i) => {
-                      // Hackathon Magic: We compare JDoodle's terminal output to the expected DB output
                       const expectedStr = typeof tc.expected_output === 'object' ? JSON.stringify(tc.expected_output) : String(tc.expected_output);
                       
                       let isPass = null;
@@ -371,7 +442,6 @@ export default function Workspace({ problem }) {
                         const cleanOut = outStr.replace(/\s/g, '');
                         const cleanExp = expectedStr.replace(/\s/g, '');
                         
-                        // If the terminal output includes the expected answer, it's a pass!
                         if (cleanOut.includes(cleanExp)) {
                           isPass = true;
                         } else {
@@ -406,7 +476,7 @@ export default function Workspace({ problem }) {
                       );
                     })
                   ) : (
-                    <span className="text-gray-600 italic">No test cases found in database.</span>
+                    <span className="text-gray-600 italic">No test cases found in database. Check your browser console (F12) to see why!</span>
                   )}
                 </div>
               )}
