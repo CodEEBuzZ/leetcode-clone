@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Editor } from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import { API_BASE } from '../config/api';
-import supabase from '../supabaseClient'; // Make sure this path is correct!
+import { supabase } from '../supabaseClient'; // Make sure this path is correct!
 
 const DEFAULT_LANG = 'javascript';
 
