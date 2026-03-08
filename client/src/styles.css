@@ -129,3 +129,9 @@ button {
 button:active {
   transform: scale(0.97);
 }
+
+/* Hide the default browser eye icon for password fields */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
