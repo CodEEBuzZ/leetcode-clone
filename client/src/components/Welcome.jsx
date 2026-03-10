@@ -28,13 +28,6 @@ const Welcome = () => {
                     <p className="text-gray-400 text-sm">Share your interview experiences and logic.</p>
                     <div className="mt-4 text-blue-400 font-semibold group-hover:underline">Write Now &rarr;</div>
                 </div>
-
-                {/* Card 3 */}
-                <div className="bg-gray-800 p-8 rounded-xl border border-gray-700 hover:border-blue-500 transition cursor-pointer group" onClick={() => window.location.href = '/login'}>
-                    <h3 className="text-2xl font-bold mb-2">Buy Course</h3>
-                    <p className="text-gray-400 text-sm">Premium DSA roadmaps specifically for placements.</p>
-                    <div className="mt-4 text-blue-400 font-semibold group-hover:underline">Explore &rarr;</div>
-                </div>
             </div>
 
             <button
