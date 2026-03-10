@@ -257,7 +257,7 @@ const Profile = ({ onSelectProblem }) => {
               ))}
 
               {/* ✨ AI GENERATE BUTTON MOVED HERE */}
-              <div className="ml-auto py-2">
+              {/* <div className="ml-auto py-2">
                 <button
                   onClick={handleGenerateProblem}
                   className="bg-indigo-600/90 hover:bg-indigo-500 text-white rounded-lg px-5 py-1.5 text-xs font-bold shadow-[0_0_15px_rgba(79,70,229,0.2)] transition-all flex items-center justify-center gap-2 border border-indigo-400/30"
@@ -265,7 +265,7 @@ const Profile = ({ onSelectProblem }) => {
                   <span className="text-sm">✨</span> Generate Custom AI Problem
                 </button>
               </div>
-            </div>
+            </div> */}
 
             {/* ── Tab: PROFILE ── */}
             {activeRightTab === 'profile' && (
